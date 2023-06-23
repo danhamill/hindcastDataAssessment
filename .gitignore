@@ -1,2 +1,2 @@
-data/
+*.dss
 src/__pycache__/
