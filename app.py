@@ -1,16 +1,15 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-from src.dataWrangler import EnsembleDataReader, getIssueDates, RobustnessTestPctDiff
+from src.dataWrangler import EnsembleDataReaderStreamlit, getIssueDates, RobustnessTestPctDiff
 from src.plots import pctDiffPlot
 import os
 
 
 @st.cache_data
 def loadScaleFactorData(selected_pattern, selected_scaleFactor):
-    r_edr = EnsembleDataReader(pattern=selected_pattern, scaleFactor=selected_scaleFactor)
-    scale_factor_dss_paths = r_edr.getSingleScaleFactorDssPaths()
-    allData = r_edr.compileAllData(scale_factor_dss_paths)
+    r_edr = EnsembleDataReaderStreamlit(pattern=selected_pattern, scaleFactor=selected_scaleFactor)
+    allData = r_edr.loadData()
     return allData
 
 st.title('Percent Difference Test')
@@ -59,15 +58,9 @@ reset_data = st.sidebar.button("Click to reset")
 
 
 if get_indiviudal_forecast_data:
-    edr = EnsembleDataReader(pattern = selected_pattern, scaleFactor=selected_scaleFactor)
-    st.sidebar.text(f'Input DSS File is: {os.path.basename(edr.dssFile)}')
-    selected_ensemble_pathnames = edr.getSingleForecastDssPaths(fPartPattern=selected_forecast)
-    selected_determinsitic_pathnames = edr.getDeterminsticDSSPaths()
-
-    mergeData = edr.compileData(selected_ensemble_pathnames, selected_determinsitic_pathnames)
-    getData = False
-    if isinstance(mergeData,pd.DataFrame):    
-        st.table(mergeData)
+    allData = loadScaleFactorData(selected_pattern, selected_scaleFactor)
+    forecast = allData.loc[allData.forecastDate == selected_forecast, :]
+    st.table(forecast)
 
 if reset_data:
     st.runtime.legacy_caching.clear_cache()

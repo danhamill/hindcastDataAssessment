@@ -1,34 +1,8 @@
-from pydsstools.heclib.dss import HecDss
+# from pydsstools.heclib.dss import HecDss
 import pandas as pd
 import numpy as np
 import os
 
-
-def getPathNamesForIssueDate(dssFile, fPartPattern):
-    with HecDss.Open(dssFile) as fid:
-        
-        plist = fid.getPathnameList(f'/*/FOLSOM/FLOW-IN/*/*/*|{fPartPattern}/')
-
-    output = []
-    for i in plist:
-        parts = i.split('/')
-        if parts not in output:
-            output.append(parts) 
-
-    res = pd.DataFrame(data = output, columns = ['start','PartA','PartB','PartC','PartD', 'PartE','PartF','end'])
-
-    output = {}
-    for scaling, group in res.groupby('PartA'):
-
-        group = group.apply(
-            lambda row: "/".join(["", row.PartA, row.PartB, row.PartC, row.PartD, row.PartE, row.PartF, ""]),
-            axis=1,
-        ).to_list()
-
-        output.update({scaling:group})
-
-
-    return output
 
 def getIssueDates(pattern):
     return {
@@ -98,8 +72,8 @@ def getIssueDates(pattern):
         ]
     }[pattern]
 
-class EnsembleDataReader(object):
-    
+class EnsembleDataReaderStreamlit(object):
+
     def __init__(self, pattern: str, scaleFactor: int ) -> None:
         # dataDirs = {
         # '1986': r'C:\workspace\git_clones\folsom-hindcast-processing\outputNormalDate4\1986_results.dss',
@@ -107,200 +81,18 @@ class EnsembleDataReader(object):
         # }
         self.scaleFactor = scaleFactor
         self.pattern = pattern
-        self.dssFile = rf'data\input\{self.pattern}_{self.scaleFactor}.dss'
+        self.featherFile = rf'data\{self.pattern}_{self.scaleFactor}.feather'
 
-    def getSingleScaleFactorDssPaths(self) -> dict:
+    def loadData(self) -> pd.DataFrame:
+        df = pd.read_feather(self.featherFile)
+        return df
 
-        output = {}
-        for fPartPattern in getIssueDates(self.pattern):
-
-            singleForecastDssPaths = self.getSingleForecastDssPaths(fPartPattern)
-            output.update({fPartPattern:singleForecastDssPaths})
-
-        return output
-
-        
-
-    def getSingleForecastDssPaths(self, fPartPattern) -> list:
-
-        
-        with HecDss.Open(self.dssFile) as fid:
-            
-            plist = fid.getPathnameList(f'/{self.scaleFactor}/FOLC1F/FLOW-NAT/*/*/*|{fPartPattern}/')
-
-        output = []
-        for i in plist:
-            parts = i.split('/')
-            if parts not in output:
-                output.append(parts) 
-
-        res = pd.DataFrame(data = output, columns = ['start','PartA','PartB','PartC','PartD', 'PartE','PartF','end'])
-
-        output = {}
-        for scaling, group in res.groupby('PartA'):
-
-            group = group.apply(
-                lambda row: "/".join(["", row.PartA, row.PartB, row.PartC, row.PartD, row.PartE, row.PartF, ""]),
-                axis=1,
-            ).to_list()
-
-            output.update({scaling:group})
-
-
-        return output[f'{self.scaleFactor}']
-    
-    def getDeterminsticDSSPaths(self) -> list:
-        with HecDss.Open(self.dssFile) as fid:
-
-            plist = fid.getPathnameList(f'/*/FOLC1F/FLOW-NAT/*/*//')
-
-        output = []
-        for i in plist:
-            parts = i.split('/')
-            if parts not in output:
-                output.append(parts) 
-
-        res = pd.DataFrame(data = output, columns = ['start','PartA','PartB','PartC','PartD', 'PartE','PartF','end'])
-
-        output = {}
-        for scaling, group in res.groupby('PartA'):
-
-            group = group.apply(
-                lambda row: "/".join(["", row.PartA, row.PartB, row.PartC, row.PartD, row.PartE, row.PartF, ""]),
-                axis=1,
-            ).to_list()
-
-            output.update({scaling:group})
-
-
-        return output[f'{self.scaleFactor}']
-
-    def getEnsembleData(self, pathsToRead: list) -> pd.DataFrame:
-        output = pd.DataFrame(columns = ['times'] +list(range(1980, 2021)))
-
-
-        # Read in Ensemble data from DSS Collection
-        for member in range(1980,2021):
-            
-            if output.times.empty:
-                doTimes = True
-            else:
-                doTimes = False
-
-            subPathNames = [i for i in pathsToRead if f'C:00{member}|' in i.split('/')[-2]]
-            
-            # Single Block
-            if len(subPathNames) == 1:
-
-                with HecDss.Open(self.dssFile) as fid:
-                    ts = fid.read_ts(subPathNames[0])
-                    values = ts.values
-                    
-                if doTimes:
-                    times = ts.pytimes
-                    times = [i.strftime('%Y-%m-%d %H:%M:%S') for i in times]
-                    output.loc[:,'times'] = times     
-                output.loc[:,member] = values.copy()
-            else:
-                outputValues = []
-                with HecDss.Open(self.dssFile) as fid:
-                    ts = fid.read_ts(subPathNames[0])
-                    values = ts.values
-                    if doTimes: 
-                        timesFirstBlock = ts.pytimes
-                    valuesFirstBlock = values.copy()
-                del values
-                with HecDss.Open(self.dssFile) as fid:
-                    ts = fid.read_ts(subPathNames[1])
-                    values = ts.values
-                    if doTimes:
-                        timesSecondBlock = ts.pytimes
-                    valuesSecondBlock = values.copy()
-                mergeValues = np.append(valuesFirstBlock, valuesSecondBlock)
-
-
-                if doTimes:
-                    mergeTimes = timesFirstBlock+timesSecondBlock
-                    mergeTimes = [i.strftime('%Y-%m-%d %H:%M:%S') for i in mergeTimes]
-                    output.loc[:,'times'] = mergeTimes
-                output.loc[:,member] = mergeValues.copy()
-        return output
-
-
-    def getDeterministicData(self, pathsToRead: list) -> pd.DataFrame:
-        output = pd.DataFrame(columns = ['times','FOLC1F'])
-
-        doTimes=True
-        # Single Block
-        if len(pathsToRead) == 1:
-
-            with HecDss.Open(self.dssFile) as fid:
-                ts = fid.read_ts(pathsToRead[0])
-                values = ts.values
-                
-            if doTimes:
-                times = ts.pytimes
-                times = [i.strftime('%Y-%m-%d %H:%M:%S') for i in times]
-                output.loc[:,'times'] = times     
-            output.loc[:,'FOLC1F'] = values.copy()
-        else:
-            outputValues = []
-            with HecDss.Open(self.dssFile) as fid:
-                ts = fid.read_ts(pathsToRead[0])
-                values = ts.values
-                if doTimes: 
-                    timesFirstBlock = ts.pytimes
-                valuesFirstBlock = values.copy()
-            del values
-            with HecDss.Open(self.dssFile) as fid:
-                ts = fid.read_ts(pathsToRead[1])
-                values = ts.values
-                if doTimes:
-                    timesSecondBlock = ts.pytimes
-                valuesSecondBlock = values.copy()
-            mergeValues = np.append(valuesFirstBlock, valuesSecondBlock)
-
-            if doTimes:
-                mergeTimes = timesFirstBlock+timesSecondBlock
-
-                mergeTimes = [i.strftime('%Y-%m-%d %H:%M:%S') for i in mergeTimes]
-                output.loc[:,'times'] = mergeTimes
-            output.loc[:,'FOLC1F'] = mergeValues.copy()
-        return output
-
-    def compileData(self, selected_ensemble_pathnames: list, 
-                    selected_determinstic_pathnames: list,
-                    deterministicData: pd.DataFrame=None) -> pd.DataFrame:
-        forecastData = self.getEnsembleData(selected_ensemble_pathnames)
-        if deterministicData is None:
-            deterministicData = self.getDeterministicData(selected_determinstic_pathnames)
-        forecastData.loc[:,'times'] = pd.to_datetime(forecastData.loc[:,'times'])
-        deterministicData.loc[:,'times'] = pd.to_datetime(deterministicData.loc[:,'times'])
-        mergeData = pd.DataFrame(index = pd.DatetimeIndex(forecastData.times, name='times')).sort_index()
-        mergeData = mergeData.merge(deterministicData.set_index('times'), left_index=True, right_index=True, how='left' )
-        mergeData = mergeData.fillna(method='ffill')
-        mergeData = mergeData.merge(forecastData.set_index('times'), left_index=True, right_index=True, how='left')
-        mergeData = mergeData.applymap("{0:.0f}".format)
-        return mergeData
-
-    def compileAllData(self, allPathsToRead: dict) -> pd.DataFrame:
-        selected_determinstic_pathnames = self.getDeterminsticDSSPaths()
-        deterministicData = self.getDeterministicData(selected_determinstic_pathnames)
-        output = pd.DataFrame()
-        for forecastDate, pathsToRead in allPathsToRead.items():
-
-            mergeData = self.compileData(pathsToRead, selected_determinstic_pathnames, deterministicData)
-            mergeData = pd.concat([mergeData], keys=[forecastDate], names =['forecastDate'])
-            assert mergeData.index.get_level_values('times').is_monotonic_increasing, 'times are not monotonic'
-            output = pd.concat([output, mergeData])
-            del mergeData
-        return output.fillna(method='ffill')
 
 
 class RobustnessTestPctDiff(object):
 
     def __init__(self, allData: pd.DataFrame, exceedProb: int, nDays: int) -> None:
-        self.data = allData
+        self.data = allData.set_index(['forecastDate','times'])
         self.nDay = nDays
         self.exceedProb = exceedProb
 
@@ -338,81 +130,200 @@ class RobustnessTestPctDiff(object):
         summary.index.name = 'forecastDate'
         return summary
         
+# class EnsembleDataReader(object):
+    
+#     def __init__(self, pattern: str, scaleFactor: int ) -> None:
+#         # dataDirs = {
+#         # '1986': r'C:\workspace\git_clones\folsom-hindcast-processing\outputNormalDate4\1986_results.dss',
+#         # '1997': r'C:\workspace\git_clones\folsom-hindcast-processing\outputNormalDate4\1997_results.dss',
+#         # }
+#         self.scaleFactor = scaleFactor
+#         self.pattern = pattern
+#         self.dssFile = rf'data\input\{self.pattern}_{self.scaleFactor}.dss'
 
+#     def getSingleScaleFactorDssPaths(self) -> dict:
 
+#         output = {}
+#         for fPartPattern in getIssueDates(self.pattern):
 
+#             singleForecastDssPaths = self.getSingleForecastDssPaths(fPartPattern)
+#             output.update({fPartPattern:singleForecastDssPaths})
 
+#         return output
 
+        
 
-if __name__ == '__main__':
-    dataDirs = {
-    '1986': r'C:\workspace\git_clones\folsom-hindcast-processing\outputNormalDate4\1986_results.dss',
-    '1997': r'C:\workspace\git_clones\folsom-hindcast-processing\outputNormalDate4\1997_results.dss',
-    }
+#     def getSingleForecastDssPaths(self, fPartPattern) -> list:
 
-    outputDir = r'outputRegulated'
-
-    timeSeriesLength = 361
-    for pattern, dssFile in dataDirs.items():
-
-        for issueDate in getIssueDates(pattern):
+        
+#         with HecDss.Open(self.dssFile) as fid:
             
-            pnames = getPathNamesForIssueDate(dssFile, issueDate)
+#             plist = fid.getPathnameList(f'/{self.scaleFactor}/FOLC1F/FLOW-NAT/*/*/*|{fPartPattern}/')
 
-            for scaling, dssPaths in pnames.items():
+#         output = []
+#         for i in plist:
+#             parts = i.split('/')
+#             if parts not in output:
+#                 output.append(parts) 
 
-                output = pd.DataFrame(columns = ['times'] +list(range(1980, 2021)))
+#         res = pd.DataFrame(data = output, columns = ['start','PartA','PartB','PartC','PartD', 'PartE','PartF','end'])
 
-                # Read in Ensemble data from DSS Collection
-                for member in range(1980,2021):
+#         output = {}
+#         for scaling, group in res.groupby('PartA'):
+
+#             group = group.apply(
+#                 lambda row: "/".join(["", row.PartA, row.PartB, row.PartC, row.PartD, row.PartE, row.PartF, ""]),
+#                 axis=1,
+#             ).to_list()
+
+#             output.update({scaling:group})
+
+
+#         return output[f'{self.scaleFactor}']
+    
+#     def getDeterminsticDSSPaths(self) -> list:
+#         with HecDss.Open(self.dssFile) as fid:
+
+#             plist = fid.getPathnameList(f'/*/FOLC1F/FLOW-NAT/*/*//')
+
+#         output = []
+#         for i in plist:
+#             parts = i.split('/')
+#             if parts not in output:
+#                 output.append(parts) 
+
+#         res = pd.DataFrame(data = output, columns = ['start','PartA','PartB','PartC','PartD', 'PartE','PartF','end'])
+
+#         output = {}
+#         for scaling, group in res.groupby('PartA'):
+
+#             group = group.apply(
+#                 lambda row: "/".join(["", row.PartA, row.PartB, row.PartC, row.PartD, row.PartE, row.PartF, ""]),
+#                 axis=1,
+#             ).to_list()
+
+#             output.update({scaling:group})
+
+
+#         return output[f'{self.scaleFactor}']
+
+#     def getEnsembleData(self, pathsToRead: list) -> pd.DataFrame:
+#         output = pd.DataFrame(columns = ['times'] +list(range(1980, 2021)))
+
+
+#         # Read in Ensemble data from DSS Collection
+#         for member in range(1980,2021):
+            
+#             if output.times.empty:
+#                 doTimes = True
+#             else:
+#                 doTimes = False
+
+#             subPathNames = [i for i in pathsToRead if f'C:00{member}|' in i.split('/')[-2]]
+            
+#             # Single Block
+#             if len(subPathNames) == 1:
+
+#                 with HecDss.Open(self.dssFile) as fid:
+#                     ts = fid.read_ts(subPathNames[0])
+#                     values = ts.values
                     
-                    if output.times.empty:
-                        doTimes = True
-                    else:
-                        doTimes = False
-
-                    subPathNames = [i for i in dssPaths if f'C:00{member}|' in i.split('/')[-2]]
-                    
-                    # Single Block
-                    if len(subPathNames) == 1:
-
-                        with HecDss.Open(dssFile) as fid:
-                            ts = fid.read_ts(subPathNames[0])
-                            values = ts.values
-                            
-                        if doTimes:
-                           times = ts.pytimes
-                           times = [i.strftime('%Y-%m-%d %H:%M:%S') for i in times]
-                           output.loc[:,'times'] = times     
-                        output.loc[:,member] = values.copy()
-                    else:
-
-
-                        outputValues = []
-                        with HecDss.Open(dssFile) as fid:
-                            ts = fid.read_ts(subPathNames[0])
-                            values = ts.values
-                            if doTimes: 
-                                timesFirstBlock = ts.pytimes
-                            valuesFirstBlock = values.copy()
-                        del values
-                        with HecDss.Open(dssFile) as fid:
-                            ts = fid.read_ts(subPathNames[1])
-                            values = ts.values
-                            if doTimes:
-                                timesSecondBlock = ts.pytimes
-                            valuesSecondBlock = values.copy()
-                        mergeValues = np.append(valuesFirstBlock, valuesSecondBlock)
-                        assert len(mergeValues) == timeSeriesLength, 'missing data during DSS read'
-
-                        if doTimes:
-                            mergeTimes = timesFirstBlock+timesSecondBlock
-                            assert len(mergeTimes) == timeSeriesLength, 'missing data during dss read'
-
-                            mergeTimes = [i.strftime('%Y-%m-%d %H:%M:%S') for i in mergeTimes]
-                            output.loc[:,'times'] = mergeTimes
-                        output.loc[:,member] = mergeValues.copy()
+#                 if doTimes:
+#                     times = ts.pytimes
+#                     times = [i.strftime('%Y-%m-%d %H:%M:%S') for i in times]
+#                     output.loc[:,'times'] = times     
+#                 output.loc[:,member] = values.copy()
+#             else:
+#                 outputValues = []
+#                 with HecDss.Open(self.dssFile) as fid:
+#                     ts = fid.read_ts(subPathNames[0])
+#                     values = ts.values
+#                     if doTimes: 
+#                         timesFirstBlock = ts.pytimes
+#                     valuesFirstBlock = values.copy()
+#                 del values
+#                 with HecDss.Open(self.dssFile) as fid:
+#                     ts = fid.read_ts(subPathNames[1])
+#                     values = ts.values
+#                     if doTimes:
+#                         timesSecondBlock = ts.pytimes
+#                     valuesSecondBlock = values.copy()
+#                 mergeValues = np.append(valuesFirstBlock, valuesSecondBlock)
 
 
+#                 if doTimes:
+#                     mergeTimes = timesFirstBlock+timesSecondBlock
+#                     mergeTimes = [i.strftime('%Y-%m-%d %H:%M:%S') for i in mergeTimes]
+#                     output.loc[:,'times'] = mergeTimes
+#                 output.loc[:,member] = mergeValues.copy()
+#         return output
 
-                        print('here')
+
+#     def getDeterministicData(self, pathsToRead: list) -> pd.DataFrame:
+#         output = pd.DataFrame(columns = ['times','FOLC1F'])
+
+#         doTimes=True
+#         # Single Block
+#         if len(pathsToRead) == 1:
+
+#             with HecDss.Open(self.dssFile) as fid:
+#                 ts = fid.read_ts(pathsToRead[0])
+#                 values = ts.values
+                
+#             if doTimes:
+#                 times = ts.pytimes
+#                 times = [i.strftime('%Y-%m-%d %H:%M:%S') for i in times]
+#                 output.loc[:,'times'] = times     
+#             output.loc[:,'FOLC1F'] = values.copy()
+#         else:
+#             outputValues = []
+#             with HecDss.Open(self.dssFile) as fid:
+#                 ts = fid.read_ts(pathsToRead[0])
+#                 values = ts.values
+#                 if doTimes: 
+#                     timesFirstBlock = ts.pytimes
+#                 valuesFirstBlock = values.copy()
+#             del values
+#             with HecDss.Open(self.dssFile) as fid:
+#                 ts = fid.read_ts(pathsToRead[1])
+#                 values = ts.values
+#                 if doTimes:
+#                     timesSecondBlock = ts.pytimes
+#                 valuesSecondBlock = values.copy()
+#             mergeValues = np.append(valuesFirstBlock, valuesSecondBlock)
+
+#             if doTimes:
+#                 mergeTimes = timesFirstBlock+timesSecondBlock
+
+#                 mergeTimes = [i.strftime('%Y-%m-%d %H:%M:%S') for i in mergeTimes]
+#                 output.loc[:,'times'] = mergeTimes
+#             output.loc[:,'FOLC1F'] = mergeValues.copy()
+#         return output
+
+#     def compileData(self, selected_ensemble_pathnames: list, 
+#                     selected_determinstic_pathnames: list,
+#                     deterministicData: pd.DataFrame=None) -> pd.DataFrame:
+#         forecastData = self.getEnsembleData(selected_ensemble_pathnames)
+#         if deterministicData is None:
+#             deterministicData = self.getDeterministicData(selected_determinstic_pathnames)
+#         forecastData.loc[:,'times'] = pd.to_datetime(forecastData.loc[:,'times'])
+#         deterministicData.loc[:,'times'] = pd.to_datetime(deterministicData.loc[:,'times'])
+#         mergeData = pd.DataFrame(index = pd.DatetimeIndex(forecastData.times, name='times')).sort_index()
+#         mergeData = mergeData.merge(deterministicData.set_index('times'), left_index=True, right_index=True, how='left' )
+#         mergeData = mergeData.fillna(method='ffill')
+#         mergeData = mergeData.merge(forecastData.set_index('times'), left_index=True, right_index=True, how='left')
+#         mergeData = mergeData.applymap("{0:.0f}".format)
+#         return mergeData
+
+#     def compileAllData(self, allPathsToRead: dict) -> pd.DataFrame:
+#         selected_determinstic_pathnames = self.getDeterminsticDSSPaths()
+#         deterministicData = self.getDeterministicData(selected_determinstic_pathnames)
+#         output = pd.DataFrame()
+#         for forecastDate, pathsToRead in allPathsToRead.items():
+
+#             mergeData = self.compileData(pathsToRead, selected_determinstic_pathnames, deterministicData)
+#             mergeData = pd.concat([mergeData], keys=[forecastDate], names =['forecastDate'])
+#             assert mergeData.index.get_level_values('times').is_monotonic_increasing, 'times are not monotonic'
+#             output = pd.concat([output, mergeData])
+#             del mergeData
+#         return output.fillna(method='ffill')
