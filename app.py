@@ -60,7 +60,7 @@ if get_individual_forecast_plot:
 
     allData = loadScaleFactorData(selected_pattern, selected_scaleFactor)
     ensembleChart = getEnsembleChart(allData, selected_forecast, 'grey' )
-    st.altair_chart(ensembleChart, use_container_width=True)
+    st.altair_chart(ensembleChart)
 
 
 if get_indiviudal_forecast_data:
