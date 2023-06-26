@@ -81,7 +81,7 @@ class EnsembleDataReaderStreamlit(object):
         # }
         self.scaleFactor = scaleFactor
         self.pattern = pattern
-        self.featherFile = rf'data/{self.pattern}_{self.scaleFactor}.feather'
+        self.featherFile = os.path.join('data',f'{self.pattern}_{self.scaleFactor}.feather')
 
     def loadData(self) -> pd.DataFrame:
         df = pd.read_feather(self.featherFile)
