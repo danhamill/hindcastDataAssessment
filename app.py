@@ -28,6 +28,35 @@ if get_scale_factor_data:
     allData = loadScaleFactorData(selected_pattern=selected_pattern, selected_scaleFactor=selected_scaleFactor)
 
 
+
+    # st.altair_chart(pctDiffPlot, use_container_width=True)
+
+
+st.sidebar.header("Individual Forecast Plotting")
+selected_forecast = st.sidebar.selectbox("Choose an Individual Forecast Date", getIssueDates(selected_pattern))
+get_indiviudal_forecast_data = st.sidebar.button("Click to get Individual Forecast Data",)
+get_individual_forecast_plot = st.sidebar.button("Click to plot Individual forecast Data")
+reset_data = st.sidebar.button("Click to reset")
+
+# if get_individual_forecast_plot:
+with st.form("test"):
+    
+    sliderForecast = st.selectbox("Choose a Forecast to plot", getIssueDates(selected_pattern))
+    submitted = st.form_submit_button("Update Plot")
+
+if submitted:
+    allData = loadScaleFactorData(selected_pattern=selected_pattern, selected_scaleFactor=selected_scaleFactor)
+    ensembleChart = getEnsembleChart(allData, sliderForecast, 'grey' )
+    st.altair_chart(ensembleChart, use_container_width=True)
+    
+
+
+
+if get_indiviudal_forecast_data:
+    allData = loadScaleFactorData(selected_pattern, selected_scaleFactor)
+    forecast = allData.loc[allData.forecastDate == selected_forecast, :]
+    st.table(forecast)
+
 col1, col2 = st.columns(2)
 
 with col1:
@@ -47,28 +76,6 @@ if exceedProbTest:
 
     st.header(f'Percent Difference Summary statistics for {nDays}-day volumes.')
     st.table(summary.reset_index())
-    # st.altair_chart(pctDiffPlot, use_container_width=True)
-
-
-st.sidebar.header("Individual Forecast Plotting")
-selected_forecast = st.sidebar.selectbox("Choose an Individual Forecast Date", getIssueDates(selected_pattern))
-get_indiviudal_forecast_data = st.sidebar.button("Click to get Individual Forecast Data",)
-get_individual_forecast_plot = st.sidebar.button("Click to plot Individual forecast Data")
-reset_data = st.sidebar.button("Click to reset")
-
-if get_individual_forecast_plot:
-
-    allData = loadScaleFactorData(selected_pattern, selected_scaleFactor)
-    ensembleChart = getEnsembleChart(allData, selected_forecast, 'grey' )
-    st.altair_chart(ensembleChart)
-
-
-if get_indiviudal_forecast_data:
-    allData = loadScaleFactorData(selected_pattern, selected_scaleFactor)
-    forecast = allData.loc[allData.forecastDate == selected_forecast, :]
-    st.table(forecast)
-
-
 
 if reset_data:
     st.runtime.legacy_caching.clear_cache()
