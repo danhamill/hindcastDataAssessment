@@ -107,7 +107,7 @@ class RobustnessTestPctDiff(object):
             group = group.astype(float).cumsum(axis=0)
 
             # Select nDay Volume
-            nDayTimeStamp = group.index.min()+ pd.DateOffset(days=int(self.nDay))
+            nDayTimeStamp = group.index.min()+ pd.DateOffset(hours=int(self.nDay)*24-1)
 
             # Calculate pct difference
             subGroup = group.loc[group.index == nDayTimeStamp, :]
