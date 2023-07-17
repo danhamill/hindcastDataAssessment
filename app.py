@@ -69,7 +69,7 @@ st.write('Must fill out both fields before starting test!')
 
 if exceedProbTest:
     allData = loadScaleFactorData(selected_pattern=selected_pattern, selected_scaleFactor=selected_scaleFactor)
-    testObj = RobustnessTestPctDiff(allData, exceedProb, nDays )
+    testObj = RobustnessTestPctDiff(allData, nDays )
     rt = testObj.calculate()
     pctDiffPlot = pctDiffPlot(rt, nDays)
     summary = testObj.pctDiffStats(rt)
@@ -77,6 +77,13 @@ if exceedProbTest:
     st.header(f'Percent Difference Summary statistics for {nDays}-day volumes.')
     st.table(summary.reset_index())
 
+    memberTable, pctDiffTable = testObj.pctDiffNEP(rt, int(exceedProb))
+
+    st.header('Member Table')
+    st.table(memberTable)
+
+    st.header('NEP Percent Difference Magnitude')
+    st.table(pctDiffTable)
 if reset_data:
     st.runtime.legacy_caching.clear_cache()
     reset_data = False

@@ -85,16 +85,16 @@ class EnsembleDataReaderStreamlit(object):
 
     def loadData(self) -> pd.DataFrame:
         df = pd.read_feather(self.featherFile)
+        df[df.columns[2:]]= df.loc[:,df.columns[2:]].astype(float)
         return df
 
 
 
 class RobustnessTestPctDiff(object):
 
-    def __init__(self, allData: pd.DataFrame, exceedProb: int, nDays: int) -> None:
+    def __init__(self, allData: pd.DataFrame, nDays: int) -> None:
         self.data = allData.set_index(['forecastDate','times'])
-        self.nDay = nDays
-        self.exceedProb = exceedProb
+        self.nDay = nDays     
 
     def calculate(self) -> pd.DataFrame:
         output = pd.DataFrame()
@@ -117,18 +117,43 @@ class RobustnessTestPctDiff(object):
 
             output = pd.concat([output, subGroup])
 
-
-
         return output
     
     def pctDiffStats(self, data:pd.DataFrame) -> pd.DataFrame:
-        data= data.drop('FOLC1F', axis=1).stack()
+        if 'FOLC1F' in data.columns:
+            data= data.drop('FOLC1F', axis=1)
+        data = data.stack()
         data.index.names = ['forecastDate','times', 'member']
         data.name = 'pctDiff'
+        
         data = data.reset_index()
+        
         summary = data.groupby('forecastDate').pctDiff.describe().drop('count', axis=1).applymap("{0:.3%}".format)
         summary.index.name = 'forecastDate'
         return summary
+    
+    def pctDiffNEP(self, data: pd.DataFrame, exceedProb: int,) -> pd.DataFrame:
+        output = pd.DataFrame()
+        if 'FOLC1F' in data.columns:
+            data= data.drop('FOLC1F', axis=1)
+                    
+        for forecastDate, group in data.groupby('forecastDate'):
+            dist = group.stack()
+            idxQuantile = (dist.sort_values()[::-1] <= dist.quantile(exceedProb/100)).idxmax()
+            valueQuantile = dist[idxQuantile]
+            outIdx = (idxQuantile[0], exceedProb, idxQuantile[-1])
+            tmp = pd.DataFrame(
+                index = pd.MultiIndex.from_product(
+                    [[outIdx[0]],[outIdx[1]],[outIdx[2]]], 
+                    names = ['forecastDate','exceedProb','member']
+                ), 
+                data = {'pctDiff':[valueQuantile]}
+            )
+            output = pd.concat([output, tmp])
+
+        memberTable = output.reset_index()[['forecastDate','exceedProb','member']].set_index(['forecastDate','exceedProb']).unstack('exceedProb')
+        pctDiffTable = output.reset_index()[['forecastDate','exceedProb','pctDiff']].set_index(['forecastDate','exceedProb']).unstack('exceedProb')
+        return memberTable, pctDiffTable
         
 # class EnsembleDataReader(object):
     
@@ -216,46 +241,73 @@ class RobustnessTestPctDiff(object):
             
 #             if output.times.empty:
 #                 doTimes = True
-#             else:
-#                 doTimes = False
+
 
 #             subPathNames = [i for i in pathsToRead if f'C:00{member}|' in i.split('/')[-2]]
-            
-#             # Single Block
-#             if len(subPathNames) == 1:
+#             timeStamps = [pd.to_datetime(i.split('/')[4]) for i in subPathNames]
+#             subPathDict = dict(zip(timeStamps, subPathNames))
+
+#             outTimes = []
+#             outValues = []
+#             for block in sorted(subPathDict.keys()):
+#                 path = subPathDict[block]
 
 #                 with HecDss.Open(self.dssFile) as fid:
-#                     ts = fid.read_ts(subPathNames[0])
+#                     ts = fid.read_ts(path)
 #                     values = ts.values
-                    
+#                     valueList = list(values.copy())
+
+#                     outValues = outValues + valueList
 #                 if doTimes:
 #                     times = ts.pytimes
-#                     times = [i.strftime('%Y-%m-%d %H:%M:%S') for i in times]
-#                     output.loc[:,'times'] = times     
-#                 output.loc[:,member] = values.copy()
-#             else:
-#                 outputValues = []
-#                 with HecDss.Open(self.dssFile) as fid:
-#                     ts = fid.read_ts(subPathNames[0])
-#                     values = ts.values
-#                     if doTimes: 
-#                         timesFirstBlock = ts.pytimes
-#                     valuesFirstBlock = values.copy()
-#                 del values
-#                 with HecDss.Open(self.dssFile) as fid:
-#                     ts = fid.read_ts(subPathNames[1])
-#                     values = ts.values
-#                     if doTimes:
-#                         timesSecondBlock = ts.pytimes
-#                     valuesSecondBlock = values.copy()
-#                 mergeValues = np.append(valuesFirstBlock, valuesSecondBlock)
+#                     outTimes = outTimes + times
+
+#             if doTimes:
+#                 output.loc[:,'times'] = outTimes 
+#                 doTimes = False
+                
+            
+#             output.loc[:,member] = outValues
+            
+            
+#             # # Single Block
+#             # if len(subPathNames) == 1:
+
+#             #     with HecDss.Open(self.dssFile) as fid:
+#             #         ts = fid.read_ts(subPathNames[0])
+#             #         values = ts.values
+                    
+#             #     if doTimes:
+#             #         times = ts.pytimes
+#             #         times = [i.strftime('%Y-%m-%d %H:%M:%S') for i in times]
+#             #         output.loc[:,'times'] = times     
+#             #     output.loc[:,member] = values.copy()
+#             # else:
+#             #     outputValues = []
+#             #     with HecDss.Open(self.dssFile) as fid:
+#             #         ts = fid.read_ts(subPathNames[0])
+#             #         values = ts.values
+#             #         if doTimes: 
+#             #             timesFirstBlock = ts.pytimes
+#             #         valuesFirstBlock = values.copy()
+#             #     del values
+#             #     with HecDss.Open(self.dssFile) as fid:
+#             #         ts = fid.read_ts(subPathNames[1])
+#             #         values = ts.values
+#             #         if doTimes:
+#             #             timesSecondBlock = ts.pytimes
+#             #         valuesSecondBlock = values.copy()
+#             #     mergeValues = np.append(valuesFirstBlock, valuesSecondBlock)
 
 
-#                 if doTimes:
-#                     mergeTimes = timesFirstBlock+timesSecondBlock
-#                     mergeTimes = [i.strftime('%Y-%m-%d %H:%M:%S') for i in mergeTimes]
-#                     output.loc[:,'times'] = mergeTimes
-#                 output.loc[:,member] = mergeValues.copy()
+#             #     if doTimes:
+#             #         mergeTimes = timesFirstBlock+timesSecondBlock
+#             #         mergeTimes = [i.strftime('%Y-%m-%d %H:%M:%S') for i in mergeTimes]
+#             #         output.loc[:,'times'] = mergeTimes
+#             #     output.loc[:,member] = mergeValues.copy()
+        
+#         if sum(output.loc[:, list(range(1980,2021))].iloc[0].diff().abs()) >1:
+#             print('BadProcessing')
 #         return output
 
 
