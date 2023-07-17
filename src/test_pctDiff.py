@@ -6,13 +6,13 @@ import pytest
 class TestClass:
 
     def test_pctDiff(self):
-        '''
-        Test to check percent difference calcs against excel calcs
-        Pattern: 1986
-        Scale: 200
-        Forecast Date: 1986020112
-        Ture workbook: data\ExcelCalc_1986_200_1986020112.xlsx
-        '''
+        
+        # Test to check percent difference calcs against excel calcs
+        # Pattern: 1986
+        # Scale: 200
+        # Forecast Date: 1986020112
+        # Ture workbook: data\ExcelCalc_1986_200_1986020112.xlsx
+        
 
         trueData = pd.read_excel(r'data\ExcelCalc_1986_200_1986020112.xlsx', usecols="CP:CV",skiprows=5)
         trueData = trueData[['X3WM_200','% difference.1']].dropna()
