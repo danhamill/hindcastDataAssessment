@@ -22,7 +22,7 @@ class TestClass:
         allData = edr.loadData()
         forecast = allData.loc[allData.forecastDate == '1986020112', :]
 
-        rTest = RobustnessTestPctDiff(forecast, 1,1)
+        rTest = RobustnessTestPctDiff(forecast, 1)
         rCalc = rTest.calculate()
 
         rCalc = rCalc.drop('FOLC1F', axis=1)
