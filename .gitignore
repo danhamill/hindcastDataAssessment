@@ -1,2 +1,6 @@
 *.dss
 src/__pycache__/
+data/Hindcast Check_1986_200 Unregulated FOLC1F vs Determinstic FOLC1F.xlsx
+output/pctDiffTestResults.xlsx
+output/pctDiffTestResultsAll_v2.xlsx
+output/pctDiffTestResultsAll.xlsx
