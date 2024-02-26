@@ -53,9 +53,9 @@ selected_reservoir_name = RESERVOIR_NAMES[selected_reservoir]
 
 if selected_project == "FOLSOM":
     hindcast_scales = list(range(200,510,10))
-    data_directory = r'data\Folsom'
+    data_directory = os.path.join('data','Folsom')
 elif selected_project == 'NEW BULLARDS BAR - OROVILLE':
-    data_directory =  r'data\nbbORO'
+    data_directory =  os.path.join('data', 'nbbORO')
     if selected_pattern == '1997':
         hindcast_scales = ['84','86','88','90','92','94','96','98','100','110','120','130']
     elif selected_pattern == '1986':
