@@ -26,7 +26,7 @@ def getEnsembleChart(df: pd.DataFrame, forecastDate: str, ensembleColor: str) ->
     domain = [str(i) for i in range(1980,2021)]
     range_ = [ensembleColor]*41
     ensChart = alt.Chart(ens).mark_line( strokeWidth=0.5).encode(
-        x=alt.X("times:T").axis(title="Time (PST)"),
+        x=alt.X("times:T").axis(title="Time (PST)", format='%d %b %Y'),
         y=alt.Y("flow:Q").axis(title="Flow (CFS)"),
         color = alt.Color("member").legend(columns=2, symbolLimit=41).scale(domain=domain, range = range_),
         opacity= alt.condition(selection, alt.value(1), alt.value(0.05))
@@ -39,9 +39,34 @@ def getEnsembleChart(df: pd.DataFrame, forecastDate: str, ensembleColor: str) ->
     return chart
 
 
-def pctDiffPlot(data: pd.DataFrame, nDays):
+def getEnsembleChartSingleMember(df: pd.DataFrame, forecastDate: str, ensembleColor: str) -> alt.Chart:
+    
+    det, ens = getEnsemblePlotData(df, forecastDate )
 
-    data= data.drop('FOLC1F', axis=1).stack()
+    detChart = alt.Chart(det).mark_line(color='black').encode(
+    x=alt.X("times:T").axis(title="Time (PST)"),
+    y=alt.Y("flow:Q").axis(title="Flow (CFS)")
+    )
+
+    selection = alt.selection_point(fields = ["member"], bind="legend")
+    domain = [f'1986_{i}' for i in range(210,510,10)]
+    range_ = [ensembleColor]*41
+    ensChart = alt.Chart(ens).mark_line( strokeWidth=0.5).encode(
+        x=alt.X("times:T").axis(title="Time (PST)", format='%d %b %Y %H'),
+        y=alt.Y("flow:Q").axis(title="Flow (CFS)"),
+        color = alt.Color("member").legend(columns=2, symbolLimit=41).scale(domain=domain, range = range_),
+        opacity= alt.condition(selection, alt.value(1), alt.value(0.05))
+    ).add_params(
+        selection
+    )
+
+    chart = alt.layer(ensChart, detChart).properties(height=500)
+
+    return chart
+
+def pctDiffPlot(data: pd.DataFrame, nDays, reservoir_name):
+
+    data= data.drop(reservoir_name, axis=1).stack()
     data.index.names = ['forecastDate','times', 'member']
     data.name = 'pctDiff'
 

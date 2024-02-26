@@ -5,7 +5,7 @@ import pandas as pd
 
 def main():
     
-    excelWriter = pd.ExcelWriter(r'output\pctDiffTestResultsAll_v2.xlsx')
+    excelWriter = pd.ExcelWriter(r'output\pctDiffTestResultsAll_3Day.xlsx')
 
     for sf in list(range(200,510,10)):
 
@@ -13,7 +13,7 @@ def main():
             compiledMemberTable = pd.DataFrame()
             compiledPctDiffTable = pd.DataFrame()
             scaleData = EnsembleDataReaderStreamlit(pattern, sf).loadData()
-            rt  = RobustnessTestPctDiff(scaleData, 1)
+            rt  = RobustnessTestPctDiff(scaleData, 3)
             pctDiff = rt.calculate()
             pctDiff = pctDiff.drop('FOLC1F', axis=1)
 

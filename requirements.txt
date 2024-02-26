@@ -3,3 +3,5 @@ numpy
 pandas
 streamlit
 pytest==7.4.0
+vl-convert-python
+xlsxwriter
