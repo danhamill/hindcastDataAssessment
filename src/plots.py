@@ -1,5 +1,8 @@
+from __future__ import annotations
 import pandas as pd
 import altair as alt
+from typing import List
+from .dataWrangler import RobustnessTestPctDiff
 alt.data_transformers.disable_max_rows()
 
 def getEnsemblePlotData(df: pd.DataFrame, forecastDate: str) -> list[pd.DataFrame]:
@@ -64,9 +67,11 @@ def getEnsembleChartSingleMember(df: pd.DataFrame, forecastDate: str, ensembleCo
 
     return chart
 
-def pctDiffPlot(data: pd.DataFrame, nDays, reservoir_name):
+def pctDiffPlot(testObj: RobustnessTestPctDiff):
+    
+    data = testObj.calculate()
 
-    data= data.drop(reservoir_name, axis=1).stack()
+    data= data.drop(testObj.reservoir_name, axis=1).stack()
     data.index.names = ['forecastDate','times', 'member']
     data.name = 'pctDiff'
 
@@ -74,15 +79,37 @@ def pctDiffPlot(data: pd.DataFrame, nDays, reservoir_name):
 
     chart = alt.Chart(data).mark_boxplot(extent='min-max').encode(
         x = 'forecastDate',
-        column = 'forecastDate',
         y=alt.Y('pctDiff').axis(format='%')
-    ).resolve_scale(y='independent', x='independent').properties(width=10)
-
-    # chart = alt.Chart(data).mark_circle().encode(
-    #     x= alt.X('member').scale(domain=(1975,2025)),
-    #     y = alt.Y('pctDiff').axis(format ='%'),
-    #     row='forecastDate'
-    # ).resolve_scale(y='independent',x='independent').interactive()
+    )
     
-
     return chart
+
+def pctVolHeatmap(testObj: RobustnessTestPctDiff, scaleFactor: int | str) -> List[alt.Chart, pd.DataFrame]:
+
+    rt = testObj.calculate()
+
+    heatmapDf = rt.drop(testObj.reservoir_name, axis=1)
+
+    tmp = heatmapDf.reset_index().drop('forecastDate', axis=1).set_index('times').stack()
+    tmp.index.names = ['forecastDate', 'member']
+    tmp.name = 'pctDif'
+    tmp = tmp.reset_index()
+
+    c = alt.Chart(tmp, width=1500, height=750).mark_rect().encode(
+        x=alt.X('member:O'),
+        y=alt.Y('yearmonthdate(forecastDate):O').axis(format='%d %b %Y'),
+        color=alt.Color('pctDif:Q').scale(
+            scheme='redblue', domainMax=3, domainMin=-3)
+    )
+
+    text = c.mark_text(baseline='middle').encode(
+        alt.Text('pctDif', format = '0.0%'),
+        color = alt.condition(
+            abs(alt.datum.pctDif) > 0.5,
+            alt.value('black'),
+            alt.value('white')
+        )
+    )
+    merge = (c + text).properties(title =f"Determinstic: {scaleFactor}")
+
+    return [merge, heatmapDf]

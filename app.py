@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from src.dataWrangler import EnsembleDataReaderStreamlit, getIssueDates, RobustnessTestPctDiff
-from src.plots import pctDiffPlot, getEnsembleChart
+from src.plots import pctDiffPlot, getEnsembleChart, pctVolHeatmap
 import os
 import io
 
@@ -117,45 +117,25 @@ nDays = st.text_input("NDay Volume to Calculate")
 
 exceedProbTest = st.button("Assess n-day volume differences") 
 
-
-
 if exceedProbTest:
-    allData, _ = loadScaleFactorData(selected_pattern=selected_pattern, 
-                                  selected_scaleFactor=selected_scaleFactor,
-                                  reservoir_name = selected_reservoir_name,
-                                  data_directory = data_directory)
+
+    allData, _ = loadScaleFactorData(
+        selected_pattern=selected_pattern,
+        selected_scaleFactor=selected_scaleFactor,
+        reservoir_name=selected_reservoir_name,
+        data_directory=data_directory
+    )
+    
     testObj = RobustnessTestPctDiff(allData, nDays, selected_reservoir_name )
-    rt = testObj.calculate()
-    pctDiffPlot_ = pctDiffPlot(rt, nDays, selected_reservoir_name)
+    
+    pctDiffPlot_ = pctDiffPlot(testObj)
 
-    pctDiff = rt.drop(selected_reservoir_name, axis=1)
-
-    tmp = pctDiff.reset_index().drop('forecastDate', axis=1).set_index('times').stack()
-    tmp.index.names = ['forecastDate','member']
-    tmp.name = 'pctDif'
-    tmp = tmp.reset_index()
-
-    c = alt.Chart(tmp, width = 1500, height=750).mark_rect().encode(
-    x = alt.X('member:O'),
-    y = alt.Y('yearmonthdate(forecastDate):O').axis(format = '%d %b %Y'),
-    color = alt.Color('pctDif').scale(scheme = 'redblue', domainMax=3, domainMin=-3)
-    )
-
-    text = c.mark_text(baseline='middle').encode(
-        alt.Text('pctDif', format = '.0%'),
-        color = alt.condition(
-            abs(alt.datum.pctDif) > 0.5,
-            alt.value('black'),
-            alt.value('white')
-        )
-    )
-
-    merge = (c + text).properties(title =f"Determinstic: {selected_scaleFactor} -- Mixed: {selected_scaleFactor}" )
+    heatmap, pctDiff = pctVolHeatmap(testObj, selected_scaleFactor)
 
     st.text(f'Pattern: {selected_pattern} Reservoir: {selected_reservoir} Scale Factor: {selected_scaleFactor}')
-    st.altair_chart(merge, use_container_width=True)
 
-    
+    st.altair_chart(heatmap, use_container_width=True)
+
     dfExcel = toExcel(pctDiff, nDays, selected_pattern, selected_scaleFactor)
 
     download2 = st.download_button(
@@ -163,6 +143,8 @@ if exceedProbTest:
         data = dfExcel,
         file_name=f'Pattern: {selected_pattern} Reservoir: {selected_reservoir} Scale Factor: {selected_scaleFactor}.xlsx',
     )
+
+    st.altair_chart(pctDiffPlot_)
 
 
     # summary = testObj.pctDiffStats(rt)

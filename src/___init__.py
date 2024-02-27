@@ -1,2 +1,2 @@
 from .dataWrangler import EnsembleDataReaderStreamlit, getIssueDates, RobustnessTestPctDiff, MixedEnsembleDataReaderStreamlit
-from .plots import pctDiffPlot, getEnsembleChart
+from .plots import pctDiffPlot, getEnsembleChart, pctVolHeatmap
