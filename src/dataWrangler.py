@@ -1,4 +1,4 @@
-# from pydsstools.heclib.dss import HecDss
+from __future__ import annotations
 import pandas as pd
 import numpy as np
 import os
@@ -200,10 +200,30 @@ class MixedEnsembleDataReaderStreamlit(object):
 
 class RobustnessTestPctDiff(object):
 
-    def __init__(self, allData: pd.DataFrame, nDays: int, reservoir_name: str) -> None:
-        self.data = allData.set_index(['forecastDate','times'])
+    # def __init__(self, allData: pd.DataFrame, nDays: int, reservoir_name: str,
+    #              pattern: str, scaleFactor: str | int) -> None:
+    #     self.data = allData.set_index(['forecastDate','times'])
+    #     self.nDay = nDays
+    #     self.reservoir_name = reservoir_name     
+    #     self.pattern = pattern
+    #     self.scaleFactor = scaleFactor
+
+    def __init__(self, selected_pattern: str, selected_reservoir: str, selected_scaleFactor:str, reservoir_name: str, data_directory:str, nDays: str | int):
         self.nDay = nDays
-        self.reservoir_name = reservoir_name     
+        self.reservoir_name = selected_reservoir
+        self.pattern = selected_pattern
+        self.reservoir_name = reservoir_name
+        self.dataDir = data_directory
+        self.scaleFactor = selected_scaleFactor
+        
+        self.dataReader = EnsembleDataReaderStreamlit(
+            self.pattern, 
+            self.scaleFactor, 
+            self.reservoir_name, 
+            self.dataDir)
+
+        self.data = self.dataReader.loadData().set_index(['forecastDate','times'])
+        self.sourceFile = self.dataReader.featherFile
 
     def calculate(self) -> pd.DataFrame:
         output = pd.DataFrame()

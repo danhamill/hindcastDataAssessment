@@ -72,14 +72,18 @@ def pctDiffPlot(testObj: RobustnessTestPctDiff):
     data = testObj.calculate()
 
     data= data.drop(testObj.reservoir_name, axis=1).stack()
-    data.index.names = ['forecastDate','times', 'member']
+    data.index.names = ['times','forecastDate', 'member']
     data.name = 'pctDiff'
 
     data = data.reset_index()
 
+    topFiftyIdx = data.groupby('forecastDate').pctDiff.nlargest(21).index.get_level_values(1)
+
+    topFifty = data.iloc[topFiftyIdx]
+
     chart = alt.Chart(data).mark_boxplot(extent='min-max').encode(
-        x = 'forecastDate',
-        y=alt.Y('pctDiff').axis(format='%')
+        x = alt.X('yearmonthdate(forecastDate):O').axis(format='%d %b %Y'),
+        y= alt.Y('pctDiff', title = f'{testObj.nDay}-day Percent Volume Difference').axis(format='%'),
     )
     
     return chart
@@ -96,20 +100,19 @@ def pctVolHeatmap(testObj: RobustnessTestPctDiff, scaleFactor: int | str) -> Lis
     tmp = tmp.reset_index()
 
     c = alt.Chart(tmp, width=1500, height=750).mark_rect().encode(
-        x=alt.X('member:O'),
-        y=alt.Y('yearmonthdate(forecastDate):O').axis(format='%d %b %Y'),
+        y=alt.Y('member:O'),
+        x=alt.X('yearmonthdate(forecastDate):O', title=None).axis(labels=False),
         color=alt.Color('pctDif:Q').scale(
             scheme='redblue', domainMax=3, domainMin=-3)
     )
-
     text = c.mark_text(baseline='middle').encode(
         alt.Text('pctDif', format = '0.0%'),
         color = alt.condition(
-            abs(alt.datum.pctDif) > 0.5,
+            abs(alt.datum.pctDif) > 0.25,
             alt.value('black'),
             alt.value('white')
         )
     )
-    merge = (c + text).properties(title =f"Determinstic: {scaleFactor}")
+    merge = (c + text).properties(title =f"Pattern: {testObj.pattern} \t Reservoir: {testObj.reservoir_name}\t  Hindcast Scale: {testObj.scaleFactor}\tPercent Difference n-day: {testObj.nDay}")
 
     return [merge, heatmapDf]

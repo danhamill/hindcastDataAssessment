@@ -44,6 +44,7 @@ def loadScaleFactorData(selected_pattern, selected_scaleFactor, reservoir_name, 
     allData = r_edr.loadData(), r_edr.featherFile
     return allData
 
+st.set_page_config(layout="wide")
 st.title('Hindcast Data Assessment')
 
 selected_project = st.sidebar.selectbox("Choose a Project", PROJECT_LIST.keys())
@@ -100,33 +101,29 @@ if submitted:
     ensembleChart = getEnsembleChart(allData, sliderForecast, 'grey' )
     st.text(fr'Reading {os.path.basename(fileName)}')
     st.altair_chart(ensembleChart, use_container_width=True)
-    
-
-
-
-# if get_indiviudal_forecast_data:
-#     allData, _ = loadScaleFactorData(selected_pattern=selected_pattern, 
-#                                   selected_scaleFactor=selected_scaleFactor,
-#                                   reservoir_name = selected_reservoir_name,
-#                                   data_directory = data_directory)
-#     forecast = allData.loc[allData.forecastDate == selected_forecast, :]
-#     st.table(forecast)
-
 
 nDays = st.text_input("NDay Volume to Calculate")
 
-exceedProbTest = st.button("Assess n-day volume differences") 
+assessVolumeDifferences = st.button("Assess n-day volume differences") 
 
-if exceedProbTest:
+if assessVolumeDifferences:
 
-    allData, _ = loadScaleFactorData(
-        selected_pattern=selected_pattern,
-        selected_scaleFactor=selected_scaleFactor,
-        reservoir_name=selected_reservoir_name,
-        data_directory=data_directory
-    )
+    # allData, _ = loadScaleFactorData(
+    #     selected_pattern=selected_pattern,
+    #     selected_scaleFactor=selected_scaleFactor,
+    #     reservoir_name=selected_reservoir_name,
+    #     data_directory=data_directory
+    # )
     
-    testObj = RobustnessTestPctDiff(allData, nDays, selected_reservoir_name )
+    # testObj = RobustnessTestPctDiff(allData, nDays, selected_reservoir_name, selected_pattern, selected_scaleFactor)
+    
+    testObj = RobustnessTestPctDiff(
+        selected_pattern=selected_pattern, 
+        selected_reservoir=selected_reservoir,
+        selected_scaleFactor = selected_scaleFactor, 
+        reservoir_name=selected_reservoir_name, 
+        data_directory=data_directory, 
+        nDays=nDays)
     
     pctDiffPlot_ = pctDiffPlot(testObj)
 
@@ -134,7 +131,9 @@ if exceedProbTest:
 
     st.text(f'Pattern: {selected_pattern} Reservoir: {selected_reservoir} Scale Factor: {selected_scaleFactor}')
 
-    st.altair_chart(heatmap, use_container_width=True)
+    compound = alt.vconcat(heatmap, pctDiffPlot_).resolve_scale(x='shared')
+
+    st.altair_chart(compound, use_container_width=True)
 
     dfExcel = toExcel(pctDiff, nDays, selected_pattern, selected_scaleFactor)
 
@@ -143,8 +142,6 @@ if exceedProbTest:
         data = dfExcel,
         file_name=f'Pattern: {selected_pattern} Reservoir: {selected_reservoir} Scale Factor: {selected_scaleFactor}.xlsx',
     )
-
-    st.altair_chart(pctDiffPlot_)
 
 
     # summary = testObj.pctDiffStats(rt)
