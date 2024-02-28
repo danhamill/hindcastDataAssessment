@@ -208,9 +208,8 @@ class RobustnessTestPctDiff(object):
     #     self.pattern = pattern
     #     self.scaleFactor = scaleFactor
 
-    def __init__(self, selected_pattern: str, selected_reservoir: str, selected_scaleFactor:str, reservoir_name: str, data_directory:str, nDays: str | int):
+    def __init__(self, selected_pattern: str,  selected_scaleFactor:str, reservoir_name: str, data_directory:str, nDays: str | int):
         self.nDay = nDays
-        self.reservoir_name = selected_reservoir
         self.pattern = selected_pattern
         self.reservoir_name = reservoir_name
         self.dataDir = data_directory

@@ -119,7 +119,6 @@ if assessVolumeDifferences:
     
     testObj = RobustnessTestPctDiff(
         selected_pattern=selected_pattern, 
-        selected_reservoir=selected_reservoir,
         selected_scaleFactor = selected_scaleFactor, 
         reservoir_name=selected_reservoir_name, 
         data_directory=data_directory, 
