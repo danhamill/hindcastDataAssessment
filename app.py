@@ -58,9 +58,9 @@ if selected_project == "FOLSOM":
 elif selected_project == 'NEW BULLARDS BAR - OROVILLE':
     data_directory =  os.path.join('data', 'nbbORO')
     if selected_pattern == '1997':
-        hindcast_scales = ['84','86','88','90','92','94','96','98','100','110','120','130']
+        hindcast_scales = ['84','86','88','90','92','94','96','98','100','102','104','106','108','110','120','130']
     elif selected_pattern == '1986':
-        hindcast_scales = ['100','102','104','106','108','110','120','130','140','150']
+        hindcast_scales = ['100','102','104','106','108','110','112','114','116','118','120','130','140','150']
                         
 selected_scaleFactor = st.sidebar.selectbox("Choose a scale Factor", hindcast_scales)
 
