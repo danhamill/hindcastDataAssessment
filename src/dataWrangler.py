@@ -241,13 +241,15 @@ class RobustnessTestPctDiff(object):
             subGroup = group.loc[group.index == nDayTimeStamp, :]
             trueValue = subGroup.iloc[0][self.reservoir_name]
             subGroup = (subGroup - trueValue)/trueValue
-            subGroup = pd.concat([subGroup], keys=[forecastDate], names =['forecastDate'])
+            subGroup = pd.concat([subGroup], keys=[group.index.min()], names =['forecastDate'])
 
             output = pd.concat([output, subGroup])
 
         return output
     
-    def pctDiffStats(self, data:pd.DataFrame) -> pd.DataFrame:
+    def pctDiffStats(self) -> pd.DataFrame:
+
+        data = self.calculate()
         if self.reservoir_name in data.columns:
             data= data.drop(self.reservoir_name, axis=1)
         data = data.stack()
@@ -255,12 +257,21 @@ class RobustnessTestPctDiff(object):
         data.name = 'pctDiff'
         
         data = data.reset_index()
-        
-        summary = data.groupby('forecastDate').pctDiff.describe().drop('count', axis=1).applymap("{0:.3%}".format)
+
+        summary = data.groupby('forecastDate').pctDiff.describe(percentiles=[0,0.1,0.25,0.5,0.75,0.95,1]).drop(
+            ['count', 'std','max','mean','min'], axis=1).applymap("{0:.3%}".format)
+        overallSummary = data.groupby('forecastDate').pctDiff.describe(percentiles=[0,0.1,0.25,0.5,0.75,0.95,1]).drop(
+            ['count', 'std','max','mean','min'], axis=1).mean(axis=0).to_frame().T.applymap("{0:.3%}".format)
+        overallSummary.index = ['Event Average']
+        summary = pd.concat([ overallSummary, summary])
+
+        summary.columns = ['0% NEP','10% NEP','25% NEP','50% NEP','75% NEP','95% NEP','100% NEP']
         summary.index.name = 'forecastDate'
         return summary
     
-    def pctDiffNEP(self, data: pd.DataFrame, exceedProb: int) -> pd.DataFrame:
+    def pctDiffNEP(self, exceedProb: int) -> pd.DataFrame:
+
+        data = self.calculate()
         output = pd.DataFrame()
         if self.reservoir_name in data.columns:
             data= data.drop(self.reservoir_name, axis=1)

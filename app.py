@@ -90,17 +90,18 @@ reset_data = st.sidebar.button("Click to reset")
 # if get_individual_forecast_plot:
 with st.form("test"):
     
-    sliderForecast = st.selectbox("Choose a Forecast to plot", getIssueDates(selected_pattern, selected_project))
+    sliderBar = st.select_slider("Choose a Forecast to plot", getIssueDates(selected_pattern, selected_project))
+    # sliderForecast = st.selectbox("Choose a Forecast to plot", getIssueDates(selected_pattern, selected_project))
     submitted = st.form_submit_button("Update Plot")
 
-if submitted:
-    allData, fileName = loadScaleFactorData(selected_pattern=selected_pattern, 
-                                  selected_scaleFactor=selected_scaleFactor,
-                                  reservoir_name = selected_reservoir_name,
-                                  data_directory = data_directory)
-    ensembleChart = getEnsembleChart(allData, sliderForecast, 'grey' )
-    st.text(fr'Reading {os.path.basename(fileName)}')
-    st.altair_chart(ensembleChart, use_container_width=True)
+    if submitted:
+        allData, fileName = loadScaleFactorData(selected_pattern=selected_pattern, 
+                                    selected_scaleFactor=selected_scaleFactor,
+                                    reservoir_name = selected_reservoir_name,
+                                    data_directory = data_directory)
+        ensembleChart = getEnsembleChart(allData, sliderBar, 'grey', selected_reservoir_name )
+        st.text(fr'Reading {os.path.basename(fileName)}')
+        st.altair_chart(ensembleChart, use_container_width=True)
 
 nDays = st.text_input("NDay Volume to Calculate")
 
@@ -132,7 +133,7 @@ if assessVolumeDifferences:
 
     compound = alt.vconcat(heatmap, pctDiffPlot_).resolve_scale(x='shared')
 
-    st.altair_chart(compound, use_container_width=True)
+    st.altair_chart(pctDiffPlot_, use_container_width=True)
 
     dfExcel = toExcel(pctDiff, nDays, selected_pattern, selected_scaleFactor)
 
@@ -143,12 +144,15 @@ if assessVolumeDifferences:
     )
 
 
-    # summary = testObj.pctDiffStats(rt)
+    summary = testObj.pctDiffStats()
 
-    # st.header(f'Percent Difference Summary statistics for {nDays}-day volumes.')
-    # st.table(summary.reset_index())
+    st.header(f'Percent Difference Summary statistics for {nDays}-day volumes.')
+    st.dataframe(summary.style.apply(
+        lambda row: ['background-color: yellow' if row.name == summary.index[0] else '' for _ in row], axis=1),
+        use_container_width=True,
+)
 
-    # memberTable, pctDiffTable = testObj.pctDiffNEP(rt, int(exceedProb))
+    memberTable, pctDiffTable = testObj.pctDiffNEP(int(75))
 
     # st.header('Member Table')
     # st.table(memberTable)
