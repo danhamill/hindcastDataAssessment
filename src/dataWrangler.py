@@ -261,8 +261,8 @@ class RobustnessTestPctDiff(object):
         summary = data.groupby('forecastDate').pctDiff.describe(percentiles=[0,0.1,0.25,0.5,0.75,0.95,1]).drop(
             ['count', 'std','max','mean','min'], axis=1).applymap("{0:.3%}".format)
         overallSummary = data.groupby('forecastDate').pctDiff.describe(percentiles=[0,0.1,0.25,0.5,0.75,0.95,1]).drop(
-            ['count', 'std','max','mean','min'], axis=1).mean(axis=0).to_frame().T.applymap("{0:.3%}".format)
-        overallSummary.index = ['Event Average']
+            ['count', 'std','max','mean','min'], axis=1).median(axis=0).to_frame().T.applymap("{0:.3%}".format)
+        overallSummary.index = ['Event Median']
         summary = pd.concat([ overallSummary, summary])
 
         summary.columns = ['0% NEP','10% NEP','25% NEP','50% NEP','75% NEP','95% NEP','100% NEP']

@@ -109,15 +109,6 @@ assessVolumeDifferences = st.button("Assess n-day volume differences")
 
 if assessVolumeDifferences:
 
-    # allData, _ = loadScaleFactorData(
-    #     selected_pattern=selected_pattern,
-    #     selected_scaleFactor=selected_scaleFactor,
-    #     reservoir_name=selected_reservoir_name,
-    #     data_directory=data_directory
-    # )
-    
-    # testObj = RobustnessTestPctDiff(allData, nDays, selected_reservoir_name, selected_pattern, selected_scaleFactor)
-    
     testObj = RobustnessTestPctDiff(
         selected_pattern=selected_pattern, 
         selected_scaleFactor = selected_scaleFactor, 
@@ -138,11 +129,10 @@ if assessVolumeDifferences:
     dfExcel = toExcel(pctDiff, nDays, selected_pattern, selected_scaleFactor)
 
     download2 = st.download_button(
-        label='Download Data as Excel File',
+        label='Download Boxplot Data as Excel File',
         data = dfExcel,
         file_name=f'Pattern: {selected_pattern} Reservoir: {selected_reservoir} Scale Factor: {selected_scaleFactor}.xlsx',
     )
-
 
     summary = testObj.pctDiffStats()
 
@@ -150,9 +140,76 @@ if assessVolumeDifferences:
     st.dataframe(summary.style.apply(
         lambda row: ['background-color: yellow' if row.name == summary.index[0] else '' for _ in row], axis=1),
         use_container_width=True,
-)
+    )
 
-    memberTable, pctDiffTable = testObj.pctDiffNEP(int(75))
+
+
+
+
+    output = pd.DataFrame()
+
+    for scaleFactor in hindcast_scales:
+
+        testObj = RobustnessTestPctDiff(
+            selected_pattern=selected_pattern, 
+            selected_scaleFactor = scaleFactor, 
+            reservoir_name=selected_reservoir_name, 
+            data_directory=data_directory, 
+            nDays=nDays
+        )
+        
+        tmp = testObj.pctDiffStats().iloc[0:1]
+
+        tmp.index = pd.Index([scaleFactor], name='Scale Factor')
+
+        output = pd.concat([output, tmp])
+
+    st.header(f'Event Median Percent Difference Summary statistics for {nDays}-day volumes for all scale factors.')
+
+    st.dataframe(output, use_container_width=True)
+
+    # output = output.stack().reset_index()
+    
+    # output.columns = ['Scale Factor', 'NEP', 'value']
+    # output.loc[:,'value'] = pd.to_numeric(output.value.str.replace('%',''))/100
+
+    # st.dataframe(output, use_container_width=True)
+    # nearest = alt.selection_point(nearest=True, on="pointerover",
+    #                           fields=["Scale Factor:O"], empty=False)
+    
+    # scaleChart = alt.Chart(output).mark_line().encode(
+    #     x = alt.X('Scale Factor:O', title='Scale Factor'),
+    #     y = alt.Y('value:Q', title=f'{nDays}-day Percent Volume Difference').axis(format='%'),
+    #     color = alt.Color('NEP:N', title='NEP'),
+    # )
+
+    # selectors = alt.Chart(output).mark_point().encode(
+    #     x='Scale Factor:O',
+    #     opacity=alt.value(0),
+    # ).add_params(
+    #     nearest
+    # )
+
+    # points = scaleChart.mark_point().encode(
+    #     opacity=alt.condition(nearest, alt.value(1), alt.value(0))
+    # )
+
+    # text = scaleChart.mark_text(align='left', dx=5, dy=-5).encode(
+    #     text=alt.condition(nearest, 'value:Q', alt.value(' '))
+    # )
+
+    # aa = alt.layer(
+    #     scaleChart, selectors, points, text
+    # )
+
+
+
+    # st.altair_chart(aa, use_container_width=True)
+
+        
+
+
+    # memberTable, pctDiffTable = testObj.pctDiffNEP(int(75))
 
     # st.header('Member Table')
     # st.table(memberTable)
